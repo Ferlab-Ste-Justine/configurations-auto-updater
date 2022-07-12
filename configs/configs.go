@@ -78,10 +78,11 @@ func checkConfigsIntegrity(c Configs) error {
 
 func GetConfigs() (Configs, error) {
 	var c Configs
-	_, err := os.Stat("./configs.json")
+	conf_file_path := getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "./configs.json")
+	_, err := os.Stat(conf_file_path)
 
 	if err == nil {
-		bs, err := ioutil.ReadFile("./configs.json")
+		bs, err := ioutil.ReadFile(conf_file_path)
 		if err != nil {
 			return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
 		}

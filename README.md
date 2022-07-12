@@ -16,7 +16,7 @@ Also, note that the tool expects to talk to etcd in a secure manner over a tls c
 
 # Usage
 
-The tool is a binary that can be configured either with a configuration file or environment variables (it tries to look for a **configs.json** file in its running directory and if the file is absent, it fallsback to reading the expected environment variables).
+The tool is a binary that can be configured either with a configuration file or environment variables (it tries to look for a **configs.json** file in its running directory (alternatively, you can specify another path for the configuration file with the **CONFS_AUTO_UPDATER_CONFIG_FILE** environment variable) and if the file is absent, it fallsback to reading the expected environment variables).
 
 The **configs.json** file is as follows:
 
