@@ -4,6 +4,7 @@ import (
     "fmt"
     "os"
 
+	"ferlab/configurations-auto-updater/cmd"
 	"ferlab/configurations-auto-updater/configs"
 	"ferlab/configurations-auto-updater/etcd"
 	"ferlab/configurations-auto-updater/filesystem"
@@ -52,7 +53,14 @@ func syncFilesystem() error {
 		return applyErr
 	}
 
-	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision)
+	if len(confs.NotificationCommand) > 0 {
+		cmdErr := cmd.ExecCommand(confs.NotificationCommand, confs.NotificationCommandRetries)
+		if cmdErr != nil {
+			return cmdErr
+		}
+	}
+
+	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision + 1)
 	for res := range changeChan {
 		if res.Error != nil {
 			return res.Error
@@ -61,7 +69,14 @@ func syncFilesystem() error {
 		applyErr := filesystem.ApplyDiffToDirectory(confs.FilesystemPath, res.Changes, filesystem.ConvertFileMode(confs.FilesPermission), filesystem.ConvertFileMode(confs.DirectoriesPermission))
 		if applyErr != nil {
 			return applyErr
-		}	
+		}
+
+		if len(confs.NotificationCommand) > 0 {
+			cmdErr := cmd.ExecCommand(confs.NotificationCommand, confs.NotificationCommandRetries)
+			if cmdErr != nil {
+				return cmdErr
+			}
+		}
 	}
 
 	return nil

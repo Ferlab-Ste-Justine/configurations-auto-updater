@@ -34,9 +34,11 @@ The **configs.json** file is as follows:
         "Username": "Client username. If non-empty, should be accompanied by by Password and CertPath/KeyPath should be empty",
         "Password": "Client password"
     },
-    "ConnectionTimeout": Connection timeout (number of seconds as integer),
-    "RequestTimeout": Request timeout (number of seconds as integer),
-    "RequestRetries": Number of times a failing request should be attempted before exiting on failure, 
+    "ConnectionTimeout": "Connection timeout (number of seconds as integer)",
+    "RequestTimeout": "Request timeout (number of seconds as integer)",
+    "RequestRetries": "Number of times a failing request should be attempted before exiting on failure",
+    "NotificationCommand": ["Command to execute after a successful startup or an update to provide a hook to notify another program", "and its arguments"],
+    "NotificationCommandRetries": "Number of retries to give to the notification command before giving up"
 }
 ```
 
@@ -53,3 +55,5 @@ The environment variables are:
 - **ETCD_ENDPOINTS**: Same parameter as **EtcdEndpoints** in **configs.json**
 - **CA_CERT_PATH**: Same parameter as **CaCertPath** in **configs.json**
 - **ETCD_KEY_PREFIX**: Same parameter as **EtcdKeyPrefix** in **configs.json**
+- **NOTIFICATION_COMMAND**: Same parameter as **NotificationCommand** in **configs.json**, but doesn't accept additional arguments
+- **NOTIFICATION_COMMAND_RETRIES**: Same parameter as **NotificationCommandRetries** in **configs.json**

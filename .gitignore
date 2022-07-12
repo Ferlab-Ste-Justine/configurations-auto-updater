@@ -2,3 +2,5 @@ configs.json
 certs/
 configurations/
 configurations-auto-updater
+notification_command.sh
+timestamp

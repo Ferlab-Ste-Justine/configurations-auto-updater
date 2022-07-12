@@ -18,16 +18,18 @@ type UserAuth struct {
 }
 
 type Configs struct {
-	FilesystemPath        string
-	FilesPermission       string
-	DirectoriesPermission string
-	EtcdKeyPrefix         string
-	EtcdEndpoints         string
-	CaCertPath            string
-	UserAuth              UserAuth
-	ConnectionTimeout     uint64
-	RequestTimeout        uint64
-	RequestRetries        uint64
+	FilesystemPath             string
+	FilesPermission            string
+	DirectoriesPermission      string
+	EtcdKeyPrefix              string
+	EtcdEndpoints              string
+	CaCertPath                 string
+	UserAuth                   UserAuth
+	ConnectionTimeout          uint64
+	RequestTimeout             uint64
+	RequestRetries             uint64
+	NotificationCommand        []string
+	NotificationCommandRetries uint64
 }
 
 func getEnv(key string, fallback string) string {
@@ -130,6 +132,19 @@ func GetConfigs() (Configs, error) {
 		c.EtcdEndpoints = os.Getenv("ETCD_ENDPOINTS")
 		c.CaCertPath = os.Getenv("CA_CERT_PATH")
 		c.EtcdKeyPrefix = os.Getenv("ETCD_KEY_PREFIX")
+
+		notificationCommand := getEnv("NOTIFICATION_COMMAND", "")
+		c.NotificationCommand = []string{}
+		if notificationCommand != "" {
+			c.NotificationCommand = append(c.NotificationCommand, notificationCommand)
+		}
+
+		var notificationCommandRetries uint64
+		notificationCommandRetries, err = strconv.ParseUint(getEnv("NOTIFICATION_COMMAND_RETRIES", "0"), 10, 64)
+		if err != nil {
+			return Configs{}, errors.New("Error fetching configuration environment variables: NOTIFICATION_COMMAND_RETRIES must be an unsigned integer")
+		}
+		c.NotificationCommandRetries = notificationCommandRetries
 	} else {
 		return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
 	}
