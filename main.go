@@ -19,7 +19,10 @@ func syncFilesystem() error {
 		return err
 	}
 
-	filesystem.EnsureFilesystemDir(confs.FilesystemPath, filesystem.ConvertFileMode(confs.DirectoriesPermission))
+	fsErr := filesystem.EnsureFilesystemDir(confs.FilesystemPath, filesystem.ConvertFileMode(confs.DirectoriesPermission))
+	if fsErr != nil {
+		return fsErr
+	}
 
 	cli, connErr := etcd.Connect(
 		confs.UserAuth.CertPath, 

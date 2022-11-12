@@ -19,7 +19,11 @@ func ConvertFileMode(mode string) os.FileMode {
 
 func EnsureFilesystemDir(filesystemPath string, permissions os.FileMode) error {
 	_, err := os.Stat(filesystemPath)
-	if err != nil &&  errors.Is(err, os.ErrNotExist) {
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+
 		mkErr := os.MkdirAll(filesystemPath, permissions)
 		if mkErr != nil {
 			return errors.New(fmt.Sprintf("Error creating filesystem directory: %s", mkErr.Error()))
