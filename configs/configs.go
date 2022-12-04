@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 )
 
 type UserAuth struct {
@@ -22,11 +24,11 @@ type Configs struct {
 	FilesPermission            string
 	DirectoriesPermission      string
 	EtcdKeyPrefix              string
-	EtcdEndpoints              string
+	EtcdEndpoints              []string
 	CaCertPath                 string
 	UserAuth                   UserAuth
-	ConnectionTimeout          uint64
-	RequestTimeout             uint64
+	ConnectionTimeout          string
+	RequestTimeout             string
 	RequestRetries             uint64
 	NotificationCommand        []string
 	NotificationCommandRetries uint64
@@ -44,7 +46,7 @@ func checkConfigsIntegrity(c Configs) error {
 		return errors.New("Configuration error: Filesystem path cannot be empty")
 	}
 
-	if c.EtcdEndpoints == "" {
+	if len(c.EtcdEndpoints) == 0 {
 		return errors.New("Configuration error: Etcd endpoints cannot be empty")
 	}
 
@@ -71,6 +73,16 @@ func checkConfigsIntegrity(c Configs) error {
 	parsedPermission, err = strconv.ParseInt(c.DirectoriesPermission, 8, 32)
 	if err != nil || parsedPermission < 0 || parsedPermission > 511 {
 		return errors.New("Configuration error: Directories permission must constitute a valid unix value for file permissions")
+	}
+
+	_, err = time.ParseDuration(c.ConnectionTimeout)
+	if err != nil {
+		return errors.New("Configuration error: Connection timeout needs to be valid golang string format")
+	}
+
+	_, err = time.ParseDuration(c.RequestTimeout)
+	if err != nil {
+		return errors.New("Configuration error: Request timeout needs to be valid golang string format")
 	}
 
 	return nil
@@ -100,22 +112,14 @@ func GetConfigs() (Configs, error) {
 			c.DirectoriesPermission = "0770"
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		var connectionTimeout, requestTimeout, requestRetries uint64
-		var err error
-		connectionTimeout, err = strconv.ParseUint(getEnv("CONNECTION_TIMEOUT", "0"), 10, 64)
-		if err != nil {
-			return Configs{}, errors.New("Error fetching configuration environment variables: CONNECTION_TIMEOUT must be an unsigned integer")
-		}
-		requestTimeout, err = strconv.ParseUint(getEnv("REQUEST_TIMEOUT", "0"), 10, 64)
-		if err != nil {
-			return Configs{}, errors.New("Error fetching configuration environment variables: REQUEST_TIMEOUT must be an unsigned integer")
-		}
+		var requestRetries uint64
+		var err error 
 		requestRetries, err = strconv.ParseUint(getEnv("REQUEST_RETRIES", "0"), 10, 64)
 		if err != nil {
 			return Configs{}, errors.New("Error fetching configuration environment variables: REQUEST_RETRIES must be an unsigned integer")
 		}
-		c.ConnectionTimeout = connectionTimeout
-		c.RequestTimeout = requestTimeout
+		c.ConnectionTimeout = getEnv("CONNECTION_TIMEOUT", "30s")
+		c.RequestTimeout = getEnv("REQUEST_TIMEOUT", "30s")
 		c.RequestRetries = requestRetries
 
 		c.FilesPermission = getEnv("FILES_PERMISSION", "0660")
@@ -130,7 +134,7 @@ func GetConfigs() (Configs, error) {
 		c.UserAuth = userAuth
 
 		c.FilesystemPath = os.Getenv("FILESYSTEM_PATH")
-		c.EtcdEndpoints = os.Getenv("ETCD_ENDPOINTS")
+		c.EtcdEndpoints = strings.Split(os.Getenv("ETCD_ENDPOINTS"), ",")
 		c.CaCertPath = os.Getenv("CA_CERT_PATH")
 		c.EtcdKeyPrefix = os.Getenv("ETCD_KEY_PREFIX")
 

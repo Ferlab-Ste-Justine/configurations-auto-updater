@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"ferlab/configurations-auto-updater/model"
+	"github.com/Ferlab-Ste-Justine/etcd-sdk/keymodels"
 )
 
 func ConvertFileMode(mode string) os.FileMode {
@@ -33,8 +33,8 @@ func EnsureFilesystemDir(filesystemPath string, permissions os.FileMode) error {
 	return nil
 }
 
-func GetDirectoryContent(path string) (map[string]model.KeyInfo, error) {
-	keys := make(map[string]model.KeyInfo)
+func GetDirectoryContent(path string) (map[string]keymodels.KeyInfo, error) {
+	keys := make(map[string]keymodels.KeyInfo)
 
 	err := filepath.WalkDir(path, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -47,7 +47,7 @@ func GetDirectoryContent(path string) (map[string]model.KeyInfo, error) {
 				return err
 			}
 
-			keys[path] = model.KeyInfo{
+			keys[path] = keymodels.KeyInfo{
 				Key: path,
 				Value: string(content),
 				Version: 0,
@@ -63,7 +63,7 @@ func GetDirectoryContent(path string) (map[string]model.KeyInfo, error) {
 	return keys, err
 }
 
-func ApplyDiffToDirectory(path string, diff model.KeysDiff, filesPermission os.FileMode, dirPermission os.FileMode) error {
+func ApplyDiffToDirectory(path string, diff keymodels.KeysDiff, filesPermission os.FileMode, dirPermission os.FileMode) error {
 	for _, file := range diff.Deletions {
 		fPath := filepath.Join(path, file)
 		err := os.Remove(fPath)
@@ -104,63 +104,3 @@ func ApplyDiffToDirectory(path string, diff model.KeysDiff, filesPermission os.F
 
 	return nil
 }
-
-/*func ListZonefiles(zonefilesPath string) ([]string, error) {
-	zonefiles, err := ioutil.ReadDir(zonefilesPath)
-	if err != nil {
-		return []string{}, errors.New(fmt.Sprintf("Error listing zonefiles: %s", err.Error()))
-	}
-
-	result := make([]string, len(zonefiles))
-	for idx, zonefile := range zonefiles {
-		result[idx] = zonefile.Name()
-	}
-	return result, nil
-}
-
-func GetZonefileDeletions(newZonefiles map[string]string, PreExistingZonefiles []string) []string {
-	deletions := []string{}
-	for _, zonefile := range PreExistingZonefiles {
-		if _, ok := newZonefiles[zonefile]; !ok {
-			deletions = append(deletions, zonefile)
-		}
-	}
-
-	return deletions
-}
-
-func DeleteZonefile(zonefilesPath string, zonefile string) error {
-	err := os.Remove(path.Join(zonefilesPath, zonefile))
-	if err != nil {
-		return errors.New(fmt.Sprintf("Error deleting zonefile: %s", err.Error()))
-	}
-
-	return nil
-}
-
-func UpsertZonefile(zonefilesPath string, zonefile string, content string) error {
-	err := ioutil.WriteFile(path.Join(zonefilesPath, zonefile), []byte(content), 0644)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Error upserting zonefile: %s", err.Error()))
-	}
-
-	return nil
-}
-
-func ApplyZonefilesChanges(zonefilesPath string, upsertedZonefiles map[string]string, deletedZonefiles []string) error {
-	for k, v := range upsertedZonefiles {
-		err := UpsertZonefile(zonefilesPath, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, v := range deletedZonefiles {
-		err := DeleteZonefile(zonefilesPath, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}*/

@@ -3,14 +3,14 @@ package main
 import (
     "fmt"
     "os"
+	"time"
 
 	"ferlab/configurations-auto-updater/cmd"
 	"ferlab/configurations-auto-updater/configs"
-	"ferlab/configurations-auto-updater/etcd"
 	"ferlab/configurations-auto-updater/filesystem"
-	"ferlab/configurations-auto-updater/model"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
+	"github.com/Ferlab-Ste-Justine/etcd-sdk/keymodels"
 )
 
 func syncFilesystem() error {
@@ -24,25 +24,28 @@ func syncFilesystem() error {
 		return fsErr
 	}
 
-	cli, connErr := etcd.Connect(
-		confs.UserAuth.CertPath, 
-		confs.UserAuth.KeyPath, 
-		confs.UserAuth.Username,
-		confs.UserAuth.Password,
-		confs.CaCertPath, 
-		confs.EtcdEndpoints, 
-		confs.ConnectionTimeout, 
-		confs.RequestTimeout, 
-		confs.RequestRetries,
-	)
-	if connErr != nil {
-		return connErr	
+	connTimeout, _ := time.ParseDuration(confs.ConnectionTimeout)
+	reqTimeout, _ := time.ParseDuration(confs.RequestTimeout)
+	cli, cliErr := client.Connect(client.EtcdClientOptions{
+		ClientCertPath:    confs.UserAuth.CertPath,
+		ClientKeyPath:     confs.UserAuth.KeyPath,
+		CaCertPath:        confs.CaCertPath,
+		Username:          confs.UserAuth.Username,
+		Password:		   confs.UserAuth.Password,
+		EtcdEndpoints:     confs.EtcdEndpoints,
+		ConnectionTimeout: connTimeout,
+		RequestTimeout:    reqTimeout,
+		Retries:           confs.RequestRetries,
+	})
+
+	if cliErr != nil {
+		return cliErr	
 	}
 	defer cli.Client.Close()
 
-	etcdKeys, revision, rangeErr := cli.GetKeyRange(confs.EtcdKeyPrefix, clientv3.GetPrefixRangeEnd(confs.EtcdKeyPrefix))
-	if rangeErr != nil {
-		return rangeErr
+	etcdKeys, revision, prefixErr := cli.GetPrefix(confs.EtcdKeyPrefix)
+	if prefixErr != nil {
+		return prefixErr
 	}
 
 	dirKeys, dirErr := filesystem.GetDirectoryContent(confs.FilesystemPath)
@@ -50,7 +53,7 @@ func syncFilesystem() error {
 		return dirErr
 	}
 
-	diff := model.GetKeysDiff(etcdKeys, confs.EtcdKeyPrefix, dirKeys, confs.FilesystemPath)
+	diff := keymodels.GetKeysDiff(etcdKeys, confs.EtcdKeyPrefix, dirKeys, confs.FilesystemPath)
 	applyErr := filesystem.ApplyDiffToDirectory(confs.FilesystemPath, diff, filesystem.ConvertFileMode(confs.FilesPermission), filesystem.ConvertFileMode(confs.DirectoriesPermission))
 	if applyErr != nil {
 		return applyErr
@@ -63,7 +66,7 @@ func syncFilesystem() error {
 		}
 	}
 
-	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision + 1)
+	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision)
 	for res := range changeChan {
 		if res.Error != nil {
 			return res.Error

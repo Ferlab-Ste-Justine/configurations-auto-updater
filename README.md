@@ -10,7 +10,7 @@ Note that the tool watches for changes in the etcd prefix range as opposed to po
 
 # Restrictions
 
-Also note that the tool expects to be managed by a service manager like systemd to restart on error. The tool was designed with the philosophy that for most categories of erros outside the program's control, the best solution is to simply crash and get restarted with a fresh context.
+Also note that the tool expects to be managed by a service manager like systemd to restart on error. The tool was designed with the philosophy that for most categories of errors outside the program's control, the best solution is to simply crash and get restarted with a fresh context.
 
 Also, note that the tool expects to talk to etcd in a secure manner over a tls connection with either certificate auth or username/password auth.
 
@@ -26,7 +26,7 @@ The **configs.json** file is as follows:
     "FilesPermission": "Permission that should be given to generated files in Unix base 8 format",
     "DirectoriesPermission": "Permission that should be given to generated directories in Unix base 8 format",
     "EtcdKeyPrefix": "Etcd key prefix that the tool will synchronize the directory with",
-    "EtcdEndpoints": "Comma separated list containing entries wwith the format: <ip>:<port>",
+    "EtcdEndpoints": "List containing entries wwith the format: <ip>:<port>",
     "CaCertPath": "Path to the CA certificate that signed the etcd servers' certificates",
     "UserAuth": {
         "CertPath": "Path to a client certificate. If non-empty,should be accompanied by KeyPath and Username/Password should be empty",
@@ -34,8 +34,8 @@ The **configs.json** file is as follows:
         "Username": "Client username. If non-empty, should be accompanied by by Password and CertPath/KeyPath should be empty",
         "Password": "Client password"
     },
-    "ConnectionTimeout": "Connection timeout (number of seconds as integer)",
-    "RequestTimeout": "Request timeout (number of seconds as integer)",
+    "ConnectionTimeout": "Connection timeout (represented as a golang duration string, ex: '30s', '5m', '3h', etc)",
+    "RequestTimeout": "Request timeout (represented as a golang duration string)",
     "RequestRetries": "Number of times a failing request should be attempted before exiting on failure",
     "NotificationCommand": ["Command to execute after a successful startup or an update to provide a hook to notify another program", "and its arguments"],
     "NotificationCommandRetries": "Number of retries to give to the notification command before giving up"
@@ -52,7 +52,7 @@ The environment variables are:
 - **USER_NAME**: Same parameter as **UserAuth.Username** in **configs.json**
 - **USER_PASSWORD**: Same parameter as **UserAuth.Password** in **configs.json**
 - **FILESYSTEM_PATH**: Same parameter as **FilesystemPath** in **configs.json**
-- **ETCD_ENDPOINTS**: Same parameter as **EtcdEndpoints** in **configs.json**
+- **ETCD_ENDPOINTS**: Same parameter as **EtcdEndpoints** in **configs.json**. Given that environment variables don't support arrays, a coma separated string is used instead.
 - **CA_CERT_PATH**: Same parameter as **CaCertPath** in **configs.json**
 - **ETCD_KEY_PREFIX**: Same parameter as **EtcdKeyPrefix** in **configs.json**
 - **NOTIFICATION_COMMAND**: Same parameter as **NotificationCommand** in **configs.json**, but doesn't accept additional arguments
