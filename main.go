@@ -66,7 +66,7 @@ func syncFilesystem() error {
 		}
 	}
 
-	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision)
+	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision + 1)
 	for res := range changeChan {
 		if res.Error != nil {
 			return res.Error
