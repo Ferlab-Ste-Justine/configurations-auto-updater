@@ -1,37 +1,51 @@
 package configs
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
+	yaml "gopkg.in/yaml.v2"
 )
 
-type UserAuth struct {
-	CertPath      string
-	KeyPath       string
-	Username      string
-	Password      string
+type EtcdPasswordAuth struct {
+	Username string
+	Password string
+}
+
+type ConfigsEtcdAuth struct {
+	CaCert       string `yaml:"ca_cert"`
+	ClientCert   string `yaml:"client_cert"`
+	ClientKey    string `yaml:"client_key"`
+	PasswordAuth string `yaml:"password_auth"`
+	Username     string `yaml:"-"`
+	Password     string `yaml:"-"`
+}
+
+type ConfigsEtcd struct {
+	Prefix            string
+	Endpoints         []string
+	ConnectionTimeout time.Duration        `yaml:"connection_timeout"`
+	RequestTimeout    time.Duration        `yaml:"request_timeout"`
+	RetryInterval     time.Duration        `yaml:"retry_interval"`
+	Retries           uint64
+	Auth              ConfigsEtcdAuth
+}
+
+type ConfigsFilesystem struct {
+	Path                  string
+	FilesPermission       string `yaml:"files_permission"`
+	DirectoriesPermission string `yaml:"directories_permission"`
 }
 
 type Configs struct {
-	FilesystemPath             string
-	FilesPermission            string
-	DirectoriesPermission      string
-	EtcdKeyPrefix              string
-	EtcdEndpoints              []string
-	CaCertPath                 string
-	UserAuth                   UserAuth
-	ConnectionTimeout          string
-	RequestTimeout             string
-	RequestRetries             uint64
-	NotificationCommand        []string
-	NotificationCommandRetries uint64
+	Filesystem                 ConfigsFilesystem
+	EtcdClient                 ConfigsEtcd       `yaml:"etcd_client"`
+	NotificationCommand        []string          `yaml:"notification_command"`
+	NotificationCommandRetries uint64            `yaml:"notification_command_retries"`
 }
 
 func getEnv(key string, fallback string) string {
@@ -42,126 +56,97 @@ func getEnv(key string, fallback string) string {
 }
 
 func checkConfigsIntegrity(c Configs) error {
-	if c.FilesystemPath == "" {
+	if c.Filesystem.Path == "" {
 		return errors.New("Configuration error: Filesystem path cannot be empty")
 	}
 
-	if len(c.EtcdEndpoints) == 0 {
+	if len(c.EtcdClient.Endpoints) == 0 {
 		return errors.New("Configuration error: Etcd endpoints cannot be empty")
 	}
 
-	if c.CaCertPath == "" {
+	if c.EtcdClient.Auth.CaCert == "" {
 		return errors.New("Configuration error: CA certificate path cannot be empty")
 	}
 
-	noValidAuth := (c.UserAuth.CertPath == "" || c.UserAuth.KeyPath == "") && (c.UserAuth.Username == "" || c.UserAuth.Password == "")
-	ambiguousAuthMethod := (c.UserAuth.CertPath != "" || c.UserAuth.KeyPath != "") && (c.UserAuth.Username != "" || c.UserAuth.Password != "")
+	noValidAuth := (c.EtcdClient.Auth.ClientCert == "" || c.EtcdClient.Auth.ClientKey == "") && (c.EtcdClient.Auth.Username == "" || c.EtcdClient.Auth.Password == "")
+	ambiguousAuthMethod := (c.EtcdClient.Auth.ClientCert != "" || c.EtcdClient.Auth.ClientKey  != "") && (c.EtcdClient.Auth.Username != "" || c.EtcdClient.Auth.Password != "")
 
 	if noValidAuth || ambiguousAuthMethod {
 		return errors.New("Configuration error: Either user certificate AND key path should not be empty XOR user name AND password should not be empty")
 	}
 
-	if c.EtcdKeyPrefix == "" {
+	if c.EtcdClient.Prefix == "" {
 		return errors.New("Configuration error: Etcd key prefix cannot be empty")
 	}
 
-	parsedPermission, err := strconv.ParseInt(c.FilesPermission, 8, 32)
+	parsedPermission, err := strconv.ParseInt(c.Filesystem.FilesPermission, 8, 32)
 	if err != nil || parsedPermission < 0 || parsedPermission > 511 {
 		return errors.New("Configuration error: Files permission must constitute a valid unix value for file permissions")
 	}
 
-	parsedPermission, err = strconv.ParseInt(c.DirectoriesPermission, 8, 32)
+	parsedPermission, err = strconv.ParseInt(c.Filesystem.DirectoriesPermission, 8, 32)
 	if err != nil || parsedPermission < 0 || parsedPermission > 511 {
 		return errors.New("Configuration error: Directories permission must constitute a valid unix value for file permissions")
-	}
-
-	_, err = time.ParseDuration(c.ConnectionTimeout)
-	if err != nil {
-		return errors.New("Configuration error: Connection timeout needs to be valid golang string format")
-	}
-
-	_, err = time.ParseDuration(c.RequestTimeout)
-	if err != nil {
-		return errors.New("Configuration error: Request timeout needs to be valid golang string format")
 	}
 
 	return nil
 }
 
+func GetPasswordAuth(path string) (EtcdPasswordAuth, error) {
+	var a EtcdPasswordAuth
+
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return a, errors.New(fmt.Sprintf("Error reading the password auth file: %s", err.Error()))
+	}
+
+	err = yaml.Unmarshal(b, &a)
+	if err != nil {
+		return a, errors.New(fmt.Sprintf("Error parsing the password auth file: %s", err.Error()))
+	}
+
+	return a, nil
+}
+
 func GetConfigs() (Configs, error) {
 	var c Configs
 	conf_file_path := getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "./configs.json")
-	_, err := os.Stat(conf_file_path)
 
-	if err == nil {
-		bs, err := ioutil.ReadFile(conf_file_path)
-		if err != nil {
-			return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
-		}
-	
-		err = json.Unmarshal(bs, &c)
-		if err != nil {
-			return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
-		}
-
-		if c.FilesPermission == "" {
-			c.FilesPermission = "0660"
-		}
-
-		if c.DirectoriesPermission == "" {
-			c.DirectoriesPermission = "0770"
-		}
-	} else if errors.Is(err, os.ErrNotExist) {
-		var requestRetries uint64
-		var err error 
-		requestRetries, err = strconv.ParseUint(getEnv("REQUEST_RETRIES", "0"), 10, 64)
-		if err != nil {
-			return Configs{}, errors.New("Error fetching configuration environment variables: REQUEST_RETRIES must be an unsigned integer")
-		}
-		c.ConnectionTimeout = getEnv("CONNECTION_TIMEOUT", "30s")
-		c.RequestTimeout = getEnv("REQUEST_TIMEOUT", "30s")
-		c.RequestRetries = requestRetries
-
-		c.FilesPermission = getEnv("FILES_PERMISSION", "0660")
-		c.DirectoriesPermission = getEnv("DIRECTORIES_PERMISSION", "0770")
-
-		userAuth := UserAuth{
-			CertPath: getEnv("USER_CERT_PATH", ""),
-			KeyPath: getEnv("USER_KEY_PATH", ""),
-			Username: getEnv("USER_NAME", ""),
-			Password: getEnv("USER_PASSWORD", ""),
-		}
-		c.UserAuth = userAuth
-
-		c.FilesystemPath = os.Getenv("FILESYSTEM_PATH")
-		c.EtcdEndpoints = strings.Split(os.Getenv("ETCD_ENDPOINTS"), ",")
-		c.CaCertPath = os.Getenv("CA_CERT_PATH")
-		c.EtcdKeyPrefix = os.Getenv("ETCD_KEY_PREFIX")
-
-		notificationCommand := getEnv("NOTIFICATION_COMMAND", "")
-		c.NotificationCommand = []string{}
-		if notificationCommand != "" {
-			c.NotificationCommand = append(c.NotificationCommand, notificationCommand)
-		}
-
-		var notificationCommandRetries uint64
-		notificationCommandRetries, err = strconv.ParseUint(getEnv("NOTIFICATION_COMMAND_RETRIES", "0"), 10, 64)
-		if err != nil {
-			return Configs{}, errors.New("Error fetching configuration environment variables: NOTIFICATION_COMMAND_RETRIES must be an unsigned integer")
-		}
-		c.NotificationCommandRetries = notificationCommandRetries
-	} else {
+	bs, err := ioutil.ReadFile(conf_file_path)
+	if err != nil {
 		return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
 	}
 
-	absPath, absPathErr := filepath.Abs(c.FilesystemPath)
+	err = yaml.Unmarshal(bs, &c)
+	if err != nil {
+		return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
+	}
+
+	if c.EtcdClient.Auth.PasswordAuth != "" {
+		pAuth, pAuthErr := GetPasswordAuth(c.EtcdClient.Auth.PasswordAuth)
+		if pAuthErr != nil {
+			return c, pAuthErr
+		}
+		c.EtcdClient.Auth.Username = pAuth.Username
+		c.EtcdClient.Auth.Password = pAuth.Password
+	}
+
+	if c.Filesystem.FilesPermission == "" {
+		c.Filesystem.FilesPermission = "0660"
+	}
+
+	if c.Filesystem.DirectoriesPermission == "" {
+		c.Filesystem.DirectoriesPermission = "0770"
+	}
+
+	absPath, absPathErr := filepath.Abs(c.Filesystem.Path)
 	if absPathErr != nil {
 		return Configs{}, errors.New(fmt.Sprintf("Error conversion filesystem path to absolute path: %s", absPathErr.Error()))
 	}
 
-	c.FilesystemPath = absPath
-	if c.FilesystemPath[len(c.FilesystemPath)-1:] != "/" {
-		c.FilesystemPath = c.FilesystemPath + "/"
+	c.Filesystem.Path = absPath
+	if c.Filesystem.Path[len(c.Filesystem.Path)-1:] != "/" {
+		c.Filesystem.Path = c.Filesystem.Path + "/"
 	}
 
 	err = checkConfigsIntegrity(c)

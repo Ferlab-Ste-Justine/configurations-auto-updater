@@ -1,17 +1,29 @@
 package main
 
 import (
+	"context"
     "fmt"
     "os"
-	"time"
 
 	"ferlab/configurations-auto-updater/cmd"
 	"ferlab/configurations-auto-updater/configs"
 	"ferlab/configurations-auto-updater/filesystem"
 
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
-	"github.com/Ferlab-Ste-Justine/etcd-sdk/keymodels"
 )
+
+func WatchInfoToKeyDiffs(w client.WatchInfo) client.KeysDiff {
+	diff := client.KeysDiff{
+		Upserts: make(map[string]string),
+		Deletions: w.Deletions,
+	}
+
+	for key, val := range w.Upserts {
+		diff.Upserts[key] = val.Value
+	}
+
+	return diff
+}
 
 func syncFilesystem() error {
 	confs, err := configs.GetConfigs()
@@ -19,23 +31,22 @@ func syncFilesystem() error {
 		return err
 	}
 
-	fsErr := filesystem.EnsureFilesystemDir(confs.FilesystemPath, filesystem.ConvertFileMode(confs.DirectoriesPermission))
+	fsErr := filesystem.EnsureFilesystemDir(confs.Filesystem.Path, filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 	if fsErr != nil {
 		return fsErr
 	}
 
-	connTimeout, _ := time.ParseDuration(confs.ConnectionTimeout)
-	reqTimeout, _ := time.ParseDuration(confs.RequestTimeout)
-	cli, cliErr := client.Connect(client.EtcdClientOptions{
-		ClientCertPath:    confs.UserAuth.CertPath,
-		ClientKeyPath:     confs.UserAuth.KeyPath,
-		CaCertPath:        confs.CaCertPath,
-		Username:          confs.UserAuth.Username,
-		Password:		   confs.UserAuth.Password,
-		EtcdEndpoints:     confs.EtcdEndpoints,
-		ConnectionTimeout: connTimeout,
-		RequestTimeout:    reqTimeout,
-		Retries:           confs.RequestRetries,
+	cli, cliErr := client.Connect(context.Background(), client.EtcdClientOptions{
+		ClientCertPath:    confs.EtcdClient.Auth.ClientCert,
+		ClientKeyPath:     confs.EtcdClient.Auth.ClientKey,
+		CaCertPath:        confs.EtcdClient.Auth.CaCert,
+		Username:          confs.EtcdClient.Auth.Username,
+		Password:		   confs.EtcdClient.Auth.Password,
+		EtcdEndpoints:     confs.EtcdClient.Endpoints,
+		ConnectionTimeout: confs.EtcdClient.ConnectionTimeout,
+		RequestTimeout:    confs.EtcdClient.RequestTimeout,
+		RetryInterval:     confs.EtcdClient.RetryInterval,
+		Retries:           confs.EtcdClient.Retries,
 	})
 
 	if cliErr != nil {
@@ -43,18 +54,18 @@ func syncFilesystem() error {
 	}
 	defer cli.Client.Close()
 
-	etcdKeys, revision, prefixErr := cli.GetPrefix(confs.EtcdKeyPrefix)
+	etcdKeys, revision, prefixErr := cli.GetPrefix(confs.EtcdClient.Prefix)
 	if prefixErr != nil {
 		return prefixErr
 	}
 
-	dirKeys, dirErr := filesystem.GetDirectoryContent(confs.FilesystemPath)
+	dirKeys, dirErr := filesystem.GetDirectoryContent(confs.Filesystem.Path)
 	if dirErr != nil {
 		return dirErr
 	}
 
-	diff := keymodels.GetKeysDiff(etcdKeys, confs.EtcdKeyPrefix, dirKeys, confs.FilesystemPath)
-	applyErr := filesystem.ApplyDiffToDirectory(confs.FilesystemPath, diff, filesystem.ConvertFileMode(confs.FilesPermission), filesystem.ConvertFileMode(confs.DirectoriesPermission))
+	diff := client.GetKeysDiff(etcdKeys, confs.EtcdClient.Prefix, dirKeys, confs.Filesystem.Path)
+	applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 	if applyErr != nil {
 		return applyErr
 	}
@@ -66,13 +77,13 @@ func syncFilesystem() error {
 		}
 	}
 
-	changeChan := cli.WatchPrefixChanges(confs.EtcdKeyPrefix, revision + 1)
+	changeChan := cli.WatchPrefixChanges(confs.EtcdClient.Prefix, revision + 1, true)
 	for res := range changeChan {
 		if res.Error != nil {
 			return res.Error
 		}
 
-		applyErr := filesystem.ApplyDiffToDirectory(confs.FilesystemPath, res.Changes, filesystem.ConvertFileMode(confs.FilesPermission), filesystem.ConvertFileMode(confs.DirectoriesPermission))
+		applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, WatchInfoToKeyDiffs(res.Changes), filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 		if applyErr != nil {
 			return applyErr
 		}

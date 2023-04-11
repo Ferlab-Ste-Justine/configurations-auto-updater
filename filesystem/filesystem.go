@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/Ferlab-Ste-Justine/etcd-sdk/keymodels"
+	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
 )
 
 func ConvertFileMode(mode string) os.FileMode {
@@ -33,8 +33,8 @@ func EnsureFilesystemDir(filesystemPath string, permissions os.FileMode) error {
 	return nil
 }
 
-func GetDirectoryContent(path string) (map[string]keymodels.KeyInfo, error) {
-	keys := make(map[string]keymodels.KeyInfo)
+func GetDirectoryContent(path string) (map[string]client.KeyInfo, error) {
+	keys := make(map[string]client.KeyInfo)
 
 	err := filepath.WalkDir(path, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -47,7 +47,7 @@ func GetDirectoryContent(path string) (map[string]keymodels.KeyInfo, error) {
 				return err
 			}
 
-			keys[path] = keymodels.KeyInfo{
+			keys[path] = client.KeyInfo{
 				Key: path,
 				Value: string(content),
 				Version: 0,
@@ -63,7 +63,7 @@ func GetDirectoryContent(path string) (map[string]keymodels.KeyInfo, error) {
 	return keys, err
 }
 
-func ApplyDiffToDirectory(path string, diff keymodels.KeysDiff, filesPermission os.FileMode, dirPermission os.FileMode) error {
+func ApplyDiffToDirectory(path string, diff client.KeysDiff, filesPermission os.FileMode, dirPermission os.FileMode) error {
 	for _, file := range diff.Deletions {
 		fPath := filepath.Join(path, file)
 		err := os.Remove(fPath)
