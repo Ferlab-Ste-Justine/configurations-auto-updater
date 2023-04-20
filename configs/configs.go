@@ -41,11 +41,19 @@ type ConfigsFilesystem struct {
 	DirectoriesPermission string `yaml:"directories_permission"`
 }
 
+type ConfigsGrpcNotifications struct {
+	Endpoint     string
+	CaCert       string `yaml:"ca_cert"`
+	ClientCert   string `yaml:"client_cert"`
+	ClientKey    string `yaml:"client_key"`
+}
+
 type Configs struct {
 	Filesystem                 ConfigsFilesystem
-	EtcdClient                 ConfigsEtcd       `yaml:"etcd_client"`
-	NotificationCommand        []string          `yaml:"notification_command"`
-	NotificationCommandRetries uint64            `yaml:"notification_command_retries"`
+	EtcdClient                 ConfigsEtcd              `yaml:"etcd_client"`
+	GrpcNotifications          ConfigsGrpcNotifications `yaml:"grpc_notifications"`
+	NotificationCommand        []string                 `yaml:"notification_command"`
+	NotificationCommandRetries uint64                   `yaml:"notification_command_retries"`
 }
 
 func getEnv(key string, fallback string) string {
@@ -110,7 +118,7 @@ func GetPasswordAuth(path string) (EtcdPasswordAuth, error) {
 
 func GetConfigs() (Configs, error) {
 	var c Configs
-	conf_file_path := getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "./configs.json")
+	conf_file_path := getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "./configs.yml")
 
 	bs, err := ioutil.ReadFile(conf_file_path)
 	if err != nil {
