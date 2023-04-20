@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 	yaml "gopkg.in/yaml.v2"
@@ -41,19 +42,35 @@ type ConfigsFilesystem struct {
 	DirectoriesPermission string `yaml:"directories_permission"`
 }
 
+type ConfigsGrpcAuth struct {
+	CaCert            string `yaml:"ca_cert"`
+	ClientCert        string `yaml:"client_cert"`
+	ClientKey         string `yaml:"client_key"`
+}
+
+type ConfigsGrpcNotifEndpoint struct {
+	Endpoint    string
+	Filter      string
+	FilterRegex *regexp.Regexp `yaml:"-"`
+}
+
 type ConfigsGrpcNotifications struct {
-	Endpoint     string
-	CaCert       string `yaml:"ca_cert"`
-	ClientCert   string `yaml:"client_cert"`
-	ClientKey    string `yaml:"client_key"`
+	Endpoint          string
+	Filter            string
+	FilterRegex       *regexp.Regexp `yaml:"-"`
+	ConnectionTimeout time.Duration               `yaml:"connection_timeout"`
+	RequestTimeout    time.Duration               `yaml:"request_timeout"`
+	RetryInterval     time.Duration               `yaml:"retry_interval"`
+	Retries           uint64
+	Auth              ConfigsGrpcAuth
 }
 
 type Configs struct {
 	Filesystem                 ConfigsFilesystem
-	EtcdClient                 ConfigsEtcd              `yaml:"etcd_client"`
-	GrpcNotifications          ConfigsGrpcNotifications `yaml:"grpc_notifications"`
-	NotificationCommand        []string                 `yaml:"notification_command"`
-	NotificationCommandRetries uint64                   `yaml:"notification_command_retries"`
+	EtcdClient                 ConfigsEtcd                `yaml:"etcd_client"`
+	GrpcNotifications          []ConfigsGrpcNotifications `yaml:"grpc_notifications"`
+	NotificationCommand        []string                   `yaml:"notification_command"`
+	NotificationCommandRetries uint64                     `yaml:"notification_command_retries"`
 }
 
 func getEnv(key string, fallback string) string {
@@ -100,7 +117,7 @@ func checkConfigsIntegrity(c Configs) error {
 	return nil
 }
 
-func GetPasswordAuth(path string) (EtcdPasswordAuth, error) {
+func getPasswordAuth(path string) (EtcdPasswordAuth, error) {
 	var a EtcdPasswordAuth
 
 	b, err := ioutil.ReadFile(path)
@@ -114,6 +131,21 @@ func GetPasswordAuth(path string) (EtcdPasswordAuth, error) {
 	}
 
 	return a, nil
+}
+
+func setGrpcEndpointsRegex(c *Configs) error {
+	for idx, notif := range c.GrpcNotifications {
+		if notif.Filter != "" {
+			exp, expErr := regexp.Compile(notif.Filter)
+			if expErr != nil {
+				return expErr
+			}
+			notif.FilterRegex = exp
+			c.GrpcNotifications[idx] = notif
+		}
+	}
+
+	return nil
 }
 
 func GetConfigs() (Configs, error) {
@@ -131,7 +163,7 @@ func GetConfigs() (Configs, error) {
 	}
 
 	if c.EtcdClient.Auth.PasswordAuth != "" {
-		pAuth, pAuthErr := GetPasswordAuth(c.EtcdClient.Auth.PasswordAuth)
+		pAuth, pAuthErr := getPasswordAuth(c.EtcdClient.Auth.PasswordAuth)
 		if pAuthErr != nil {
 			return c, pAuthErr
 		}
@@ -155,6 +187,11 @@ func GetConfigs() (Configs, error) {
 	c.Filesystem.Path = absPath
 	if c.Filesystem.Path[len(c.Filesystem.Path)-1:] != "/" {
 		c.Filesystem.Path = c.Filesystem.Path + "/"
+	}
+
+	expErr := setGrpcEndpointsRegex(&c)
+	if expErr != nil {
+		return c, expErr
 	}
 
 	err = checkConfigsIntegrity(c)

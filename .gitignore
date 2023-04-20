@@ -4,7 +4,7 @@ configurations/
 configurations-auto-updater
 notification_command.sh
 timestamp
-test-environment/*/local.tfvars
+test-environment/*/*.tfvars
 test-environment/*/.terraform.lock.hcl
 test-environment/*/.terraform/
 test-environment/*/terraform.tfstate
