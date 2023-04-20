@@ -5,25 +5,12 @@ import (
     "fmt"
     "os"
 
-	"ferlab/configurations-auto-updater/cmd"
-	"ferlab/configurations-auto-updater/configs"
-	"ferlab/configurations-auto-updater/filesystem"
+	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/cmd"
+	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/configs"
+	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/filesystem"
 
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
 )
-
-func WatchInfoToKeyDiffs(w client.WatchInfo) client.KeysDiff {
-	diff := client.KeysDiff{
-		Upserts: make(map[string]string),
-		Deletions: w.Deletions,
-	}
-
-	for key, val := range w.Upserts {
-		diff.Upserts[key] = val.Value
-	}
-
-	return diff
-}
 
 func syncFilesystem() error {
 	confs, err := configs.GetConfigs()
@@ -54,7 +41,7 @@ func syncFilesystem() error {
 	}
 	defer cli.Client.Close()
 
-	etcdKeys, revision, prefixErr := cli.GetPrefix(confs.EtcdClient.Prefix)
+	prefixInfo, prefixErr := cli.GetPrefix(confs.EtcdClient.Prefix)
 	if prefixErr != nil {
 		return prefixErr
 	}
@@ -64,7 +51,10 @@ func syncFilesystem() error {
 		return dirErr
 	}
 
-	diff := client.GetKeysDiff(etcdKeys, confs.EtcdClient.Prefix, dirKeys, confs.Filesystem.Path)
+	diff := client.GetKeyDiff(
+		prefixInfo.Keys.ToValueMap(confs.EtcdClient.Prefix), 
+		dirKeys.ToValueMap(confs.Filesystem.Path),
+	)
 	applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 	if applyErr != nil {
 		return applyErr
@@ -77,13 +67,23 @@ func syncFilesystem() error {
 		}
 	}
 
-	changeChan := cli.WatchPrefixChanges(confs.EtcdClient.Prefix, revision + 1, true)
+	wOpts := client.WatchOptions{
+		Revision: prefixInfo.Revision + 1,
+		IsPrefix: true,
+		TrimPrefix: true,
+	}
+	changeChan := cli.Watch(confs.EtcdClient.Prefix, wOpts)
 	for res := range changeChan {
 		if res.Error != nil {
 			return res.Error
 		}
 
-		applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, WatchInfoToKeyDiffs(res.Changes), filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
+		diff, diffErr := filesystem.WatchInfoToKeyDiffs(confs.Filesystem.Path, res.Changes)
+		if diffErr != nil {
+			return diffErr
+		}
+
+		applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 		if applyErr != nil {
 			return applyErr
 		}
