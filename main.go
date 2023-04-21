@@ -21,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	syncCancel, syncErrChan := SyncFilesystem(confs, log)
+	syncCancel, syncFeedback := SyncFilesystem(confs, nil, log)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
@@ -31,9 +31,17 @@ func main() {
 		syncCancel()
 	}()
 
-	syncErr := <- syncErrChan
-	if syncErr != nil {
-		log.Errorf(err.Error())
-		os.Exit(1)
+	for feedback := range syncFeedback {
+		if feedback.Error != nil {
+			log.Errorf(feedback.Error.Error())
+			os.Exit(1)
+		}
+
+		log.Infof(
+			"[main] Received Update: %d inserts, %d updates and %d deletions", 
+			len(feedback.Diff.Inserts),
+			len(feedback.Diff.Updates),
+			len(feedback.Diff.Deletions),
+		)
 	}
 }

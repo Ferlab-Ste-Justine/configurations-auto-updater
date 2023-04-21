@@ -11,20 +11,24 @@ import (
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
 )
 
+type SyncFsFeedback struct {
+	Diff  client.KeyDiff
+	Error error
+}
 
-func SyncFilesystem(confs configs.Configs, log logger.Logger) (context.CancelFunc, <-chan error) {
-	errChan := make(chan error)
+func SyncFilesystem(confs configs.Configs, proceedChan <-chan struct{}, log logger.Logger) (context.CancelFunc, <-chan SyncFsFeedback) {
+	feedbackChan := make(chan SyncFsFeedback)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		defer func() {
-			close(errChan)
+			close(feedbackChan)
 			cancel()
 		}()
 
 		fsErr := filesystem.EnsureFilesystemDir(confs.Filesystem.Path, filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 		if fsErr != nil {
-			errChan <- fsErr
+			feedbackChan <- SyncFsFeedback{Error: fsErr}
 			return
 		}
 
@@ -42,20 +46,20 @@ func SyncFilesystem(confs configs.Configs, log logger.Logger) (context.CancelFun
 		})
 
 		if cliErr != nil {
-			errChan <- cliErr
+			feedbackChan <- SyncFsFeedback{Error: cliErr}
 			return
 		}
 		defer cli.Client.Close()
 
 		prefixInfo, prefixErr := cli.GetPrefix(confs.EtcdClient.Prefix)
 		if prefixErr != nil {
-			errChan <- prefixErr
+			feedbackChan <- SyncFsFeedback{Error: prefixErr}
 			return
 		}
 
 		dirKeys, dirErr := filesystem.GetDirectoryContent(confs.Filesystem.Path)
 		if dirErr != nil {
-			errChan <- dirErr
+			feedbackChan <- SyncFsFeedback{Error: dirErr}
 			return
 		}
 
@@ -65,16 +69,24 @@ func SyncFilesystem(confs configs.Configs, log logger.Logger) (context.CancelFun
 		)
 
 		if !diff.IsEmpty() {
+			feedbackChan <- SyncFsFeedback{Diff: diff}
+			if proceedChan != nil {
+				_, ok := <- proceedChan
+				if !ok {
+					return
+				}
+			}
+
 			applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 			if applyErr != nil {
-				errChan <- applyErr
+				feedbackChan <- SyncFsFeedback{Error: applyErr}
 				return
 			}
 	
 			if len(confs.NotificationCommand) > 0 {
 				cmdErr := cmd.ExecCommand(confs.NotificationCommand, confs.NotificationCommandRetries)
 				if cmdErr != nil {
-					errChan <- cmdErr
+					feedbackChan <- SyncFsFeedback{Error: cmdErr}
 					return
 				}
 			}
@@ -88,26 +100,34 @@ func SyncFilesystem(confs configs.Configs, log logger.Logger) (context.CancelFun
 		changeChan := cli.Watch(confs.EtcdClient.Prefix, wOpts)
 		for res := range changeChan {
 			if res.Error != nil {
-				errChan <- res.Error
+				feedbackChan <- SyncFsFeedback{Error: res.Error}
 				return
 			}
 
 			diff, diffErr := filesystem.WatchInfoToKeyDiffs(confs.Filesystem.Path, res.Changes)
 			if diffErr != nil {
-				errChan <- diffErr
+				feedbackChan <- SyncFsFeedback{Error: diffErr}
 				return
+			}
+
+			feedbackChan <- SyncFsFeedback{Diff: diff}
+			if proceedChan != nil {
+				_, ok := <- proceedChan
+				if !ok {
+					return
+				}
 			}
 
 			applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
 			if applyErr != nil {
-				errChan <- applyErr
+				feedbackChan <- SyncFsFeedback{Error: applyErr}
 				return
 			}
 
 			if len(confs.NotificationCommand) > 0 {
 				cmdErr := cmd.ExecCommand(confs.NotificationCommand, confs.NotificationCommandRetries)
 				if cmdErr != nil {
-					errChan <- cmdErr
+					feedbackChan <- SyncFsFeedback{Error: cmdErr}
 					return
 				}
 			}
@@ -115,5 +135,5 @@ func SyncFilesystem(confs configs.Configs, log logger.Logger) (context.CancelFun
 		log.Infof("[Etcd] Etcd watch stopped")
 	}()
 
-	return cancel, errChan
+	return cancel, feedbackChan
 }
