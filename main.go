@@ -67,17 +67,20 @@ func SyncFilesystem(confs configs.Configs, log logger.Logger) (context.CancelFun
 			prefixInfo.Keys.ToValueMap(confs.EtcdClient.Prefix), 
 			dirKeys.ToValueMap(confs.Filesystem.Path),
 		)
-		applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
-		if applyErr != nil {
-			errChan <- applyErr
-			return
-		}
 
-		if len(confs.NotificationCommand) > 0 {
-			cmdErr := cmd.ExecCommand(confs.NotificationCommand, confs.NotificationCommandRetries)
-			if cmdErr != nil {
-				errChan <- cmdErr
+		if !diff.IsEmpty() {
+			applyErr := filesystem.ApplyDiffToDirectory(confs.Filesystem.Path, diff, filesystem.ConvertFileMode(confs.Filesystem.FilesPermission), filesystem.ConvertFileMode(confs.Filesystem.DirectoriesPermission))
+			if applyErr != nil {
+				errChan <- applyErr
 				return
+			}
+	
+			if len(confs.NotificationCommand) > 0 {
+				cmdErr := cmd.ExecCommand(confs.NotificationCommand, confs.NotificationCommandRetries)
+				if cmdErr != nil {
+					errChan <- cmdErr
+					return
+				}
 			}
 		}
 
