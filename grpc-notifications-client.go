@@ -9,7 +9,9 @@ import (
 
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/keypb"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func GetKeyFilter(regex *regexp.Regexp) client.KeyDiffFilter {
@@ -48,7 +50,14 @@ type GrpcNotifClient struct {
 func ConnectToNotifEndpoints(notifications []configs.ConfigsGrpcNotifications) (*GrpcNotifClient, error) {
 	cli := GrpcNotifClient{Targets: []GrpcNotifClientTarget{}}
 	for _, notification := range notifications {
-		var opts []grpc.DialOption
+		opts := []grpc.DialOption{}
+		opts = append(opts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(
+			grpc_retry.WithCodes(codes.Unavailable, codes.ResourceExhausted),
+			grpc_retry.WithMax(uint(notification.Retries)),
+			grpc_retry.WithBackoff(grpc_retry.BackoffLinear(notification.RetryInterval)),
+			grpc_retry.WithPerRetryTimeout(notification.RequestTimeout),
+		)))
+
 		opts = append(opts, grpc.WithInsecure())
 		
 		conn, connErr := grpc.Dial(notification.Endpoint, opts...)

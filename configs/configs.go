@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -68,13 +67,6 @@ type Configs struct {
 	GrpcNotifications          []ConfigsGrpcNotifications `yaml:"grpc_notifications"`
 	NotificationCommand        []string                   `yaml:"notification_command"`
 	NotificationCommandRetries uint64                     `yaml:"notification_command_retries"`
-}
-
-func getEnv(key string, fallback string) string {
-    if value, ok := os.LookupEnv(key); ok {
-        return value
-    }
-    return fallback
 }
 
 func checkConfigsIntegrity(c Configs) error {
@@ -145,11 +137,10 @@ func setGrpcEndpointsRegex(c *Configs) error {
 	return nil
 }
 
-func GetConfigs() (Configs, error) {
+func GetConfigs(confFilePath string) (Configs, error) {
 	var c Configs
-	conf_file_path := getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "./configs.yml")
 
-	bs, err := ioutil.ReadFile(conf_file_path)
+	bs, err := ioutil.ReadFile(confFilePath)
 	if err != nil {
 		return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
 	}

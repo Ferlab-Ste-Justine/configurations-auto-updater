@@ -12,10 +12,17 @@ import (
 	//"google.golang.org/grpc/credentials/insecure"
 )
 
+func getEnv(key string, fallback string) string {
+    if value, ok := os.LookupEnv(key); ok {
+        return value
+    }
+    return fallback
+}
+
 func main() {
 	log := logger.Logger{LogLevel: logger.INFO}
 
-	confs, err := configs.GetConfigs()
+	confs, err := configs.GetConfigs(getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "configs.yml"))
 	if err != nil {
 		log.Errorf(err.Error())
 		os.Exit(1)
