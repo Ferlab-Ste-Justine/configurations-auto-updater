@@ -72,7 +72,7 @@ func GetDirectoryContent(path string) (client.KeyInfoMap, error) {
 			}
 
 			keys[path] = client.KeyInfo{
-				Key: path,
+				Key: filepath.ToSlash(path),
 				Value: string(content),
 				Version: 0,
 				CreateRevision: 0,
@@ -89,7 +89,7 @@ func GetDirectoryContent(path string) (client.KeyInfoMap, error) {
 
 func ApplyDiffToDirectory(path string, diff client.KeyDiff, filesPermission os.FileMode, dirPermission os.FileMode) error {
 	for _, file := range diff.Deletions {
-		fPath := filepath.Join(path, file)
+		fPath := filepath.Join(path, filepath.FromSlash(file))
 		err := os.Remove(fPath)
 		if err != nil {
 			return err
@@ -97,7 +97,7 @@ func ApplyDiffToDirectory(path string, diff client.KeyDiff, filesPermission os.F
 	}
 
 	upsertFile := func(file string, content string) error {
-		fPath := filepath.Join(path, file)
+		fPath := filepath.Join(path, filepath.FromSlash(file))
 		fdir := filepath.Dir(fPath)
 		mkdirErr := os.MkdirAll(fdir, dirPermission)
 		if mkdirErr != nil {

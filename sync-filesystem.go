@@ -65,7 +65,7 @@ func SyncFilesystem(confs configs.Configs, proceedChan <-chan struct{}, log logg
 
 		diff := client.GetKeyDiff(
 			prefixInfo.Keys.ToValueMap(confs.EtcdClient.Prefix), 
-			dirKeys.ToValueMap(confs.Filesystem.Path),
+			dirKeys.ToValueMap(confs.Filesystem.SlashPath),
 		)
 
 		if !diff.IsEmpty() {

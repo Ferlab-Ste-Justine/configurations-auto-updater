@@ -38,6 +38,7 @@ type ConfigsEtcd struct {
 
 type ConfigsFilesystem struct {
 	Path                  string
+	SlashPath             string `yaml:"-"`
 	FilesPermission       string `yaml:"files_permission"`
 	DirectoriesPermission string `yaml:"directories_permission"`
 }
@@ -48,19 +49,15 @@ type ConfigsGrpcAuth struct {
 	ClientKey         string `yaml:"client_key"`
 }
 
-type ConfigsGrpcNotifEndpoint struct {
-	Endpoint    string
-	Filter      string
-	FilterRegex *regexp.Regexp `yaml:"-"`
-}
-
 type ConfigsGrpcNotifications struct {
 	Endpoint          string
 	Filter            string
-	FilterRegex       *regexp.Regexp `yaml:"-"`
-	ConnectionTimeout time.Duration               `yaml:"connection_timeout"`
-	RequestTimeout    time.Duration               `yaml:"request_timeout"`
-	RetryInterval     time.Duration               `yaml:"retry_interval"`
+	FilterRegex       *regexp.Regexp  `yaml:"-"`
+	TrimKeyPath       bool            `yaml:"trim_key_path"`
+	MaxChunkSize      uint64          `yaml:"max_chunk_size"`
+	ConnectionTimeout time.Duration   `yaml:"connection_timeout"`
+	RequestTimeout    time.Duration   `yaml:"request_timeout"`            
+	RetryInterval     time.Duration   `yaml:"retry_interval"`
 	Retries           uint64
 	Auth              ConfigsGrpcAuth
 }
@@ -185,8 +182,9 @@ func GetConfigs() (Configs, error) {
 	}
 
 	c.Filesystem.Path = absPath
-	if c.Filesystem.Path[len(c.Filesystem.Path)-1:] != "/" {
-		c.Filesystem.Path = c.Filesystem.Path + "/"
+	c.Filesystem.SlashPath = filepath.ToSlash(absPath)
+	if c.Filesystem.SlashPath [len(c.Filesystem.SlashPath )-1:] != "/" {
+		c.Filesystem.SlashPath  = c.Filesystem.SlashPath + "/"
 	}
 
 	expErr := setGrpcEndpointsRegex(&c)

@@ -21,7 +21,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	syncCancel, syncFeedback := SyncFilesystem(confs, nil, log)
+	var proceedCh chan struct{}
+	var notifCli *GrpcNotifClient
+	if len(confs.GrpcNotifications) > 0 {
+		proceedCh = make(chan struct{})
+		defer close(proceedCh)
+
+		notifCli, err = ConnectToNotifEndpoints(confs.GrpcNotifications)
+		if err != nil {
+			log.Errorf(err.Error())
+			os.Exit(1)
+		}
+	}
+
+	syncCancel, syncFeedback := SyncFilesystem(confs, proceedCh, log)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
@@ -33,6 +46,7 @@ func main() {
 
 	for feedback := range syncFeedback {
 		if feedback.Error != nil {
+			syncCancel()
 			log.Errorf(feedback.Error.Error())
 			os.Exit(1)
 		}
@@ -43,5 +57,16 @@ func main() {
 			len(feedback.Diff.Updates),
 			len(feedback.Diff.Deletions),
 		)
+
+		if notifCli != nil {
+			sendErr := notifCli.Send(feedback.Diff)
+			if sendErr != nil {
+				syncCancel()
+				close(sigChan)
+				log.Errorf(sendErr.Error())
+				os.Exit(1)
+			}
+			proceedCh <- struct{}{}
+		}
 	}
 }
