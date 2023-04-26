@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io/ioutil"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -12,7 +17,36 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 )
+
+func getTlsConfigs(opts configs.ConfigsGrpcAuth) (credentials.TransportCredentials, error) {
+	tlsConf := &tls.Config{}
+
+	//User credentials
+	certData, err := tls.LoadX509KeyPair(opts.ClientCert, opts.ClientKey)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to load user credentials: %s", err.Error()))
+	}
+	(*tlsConf).Certificates = []tls.Certificate{certData}
+
+	(*tlsConf).InsecureSkipVerify = false
+
+	//CA cert
+	caCertContent, err := ioutil.ReadFile(opts.CaCert)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to read root certificate file: %s", err.Error()))
+	}
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(caCertContent)
+	if !ok {
+		return nil, errors.New("Failed to parse root certificate authority")
+	}
+	(*tlsConf).RootCAs = roots
+
+	return credentials.NewTLS(tlsConf), nil
+}
+
 
 func GetKeyFilter(regex *regexp.Regexp) client.KeyDiffFilter {
 	if regex != nil {
@@ -58,7 +92,15 @@ func ConnectToNotifEndpoints(notifications []configs.ConfigsGrpcNotifications) (
 			grpc_retry.WithPerRetryTimeout(notification.RequestTimeout),
 		)))
 
-		opts = append(opts, grpc.WithInsecure())
+		if notification.Auth.ClientCert == "" {
+			opts = append(opts, grpc.WithInsecure())
+		} else {
+			creds, credsErr := getTlsConfigs(notification.Auth)
+			if credsErr != nil {
+				return nil, credsErr
+			}
+			opts = append(opts, grpc.WithTransportCredentials(creds))
+		}
 		
 		conn, connErr := grpc.Dial(notification.Endpoint, opts...)
 		if connErr != nil {
