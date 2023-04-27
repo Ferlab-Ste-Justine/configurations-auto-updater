@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/configs"
+	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/config"
 
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/client"
 	"github.com/Ferlab-Ste-Justine/etcd-sdk/keypb"
@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func getTlsConfigs(opts configs.ConfigsGrpcAuth) (credentials.TransportCredentials, error) {
+func getTlsConfig(opts config.ConfigGrpcAuth) (credentials.TransportCredentials, error) {
 	tlsConf := &tls.Config{}
 
 	//User credentials
@@ -81,7 +81,7 @@ type GrpcNotifClient struct {
 	Targets []GrpcNotifClientTarget
 }
 
-func ConnectToNotifEndpoints(notifications []configs.ConfigsGrpcNotifications) (*GrpcNotifClient, error) {
+func ConnectToNotifEndpoints(notifications []config.ConfigGrpcNotifications) (*GrpcNotifClient, error) {
 	cli := GrpcNotifClient{Targets: []GrpcNotifClientTarget{}}
 	for _, notification := range notifications {
 		opts := []grpc.DialOption{}
@@ -95,7 +95,7 @@ func ConnectToNotifEndpoints(notifications []configs.ConfigsGrpcNotifications) (
 		if notification.Auth.ClientCert == "" {
 			opts = append(opts, grpc.WithInsecure())
 		} else {
-			creds, credsErr := getTlsConfigs(notification.Auth)
+			creds, credsErr := getTlsConfig(notification.Auth)
 			if credsErr != nil {
 				return nil, credsErr
 			}

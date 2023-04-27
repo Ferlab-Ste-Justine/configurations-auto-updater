@@ -5,11 +5,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/configs"
+	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/config"
 	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/logger"
-
-	//"google.golang.org/grpc"
-	//"google.golang.org/grpc/credentials/insecure"
 )
 
 func getEnv(key string, fallback string) string {
@@ -22,28 +19,28 @@ func getEnv(key string, fallback string) string {
 func main() {
 	log := logger.Logger{LogLevel: logger.ERROR}
 
-	confs, err := configs.GetConfigs(getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "configs.yml"))
+	conf, err := config.GetConfig(getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "config.yml"))
 	if err != nil {
 		log.Errorf(err.Error())
 		os.Exit(1)
 	}
 
-	log.LogLevel = confs.GetLogLevel()
+	log.LogLevel = conf.GetLogLevel()
 
 	var proceedCh chan struct{}
 	var notifCli *GrpcNotifClient
-	if len(confs.GrpcNotifications) > 0 {
+	if len(conf.GrpcNotifications) > 0 {
 		proceedCh = make(chan struct{})
 		defer close(proceedCh)
 
-		notifCli, err = ConnectToNotifEndpoints(confs.GrpcNotifications)
+		notifCli, err = ConnectToNotifEndpoints(conf.GrpcNotifications)
 		if err != nil {
 			log.Errorf(err.Error())
 			os.Exit(1)
 		}
 	}
 
-	syncCancel, syncFeedback := SyncFilesystem(confs, proceedCh, log)
+	syncCancel, syncFeedback := SyncFilesystem(conf, proceedCh, log)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)

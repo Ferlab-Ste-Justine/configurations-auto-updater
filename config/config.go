@@ -1,4 +1,4 @@
-package configs
+package config
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ type EtcdPasswordAuth struct {
 	Password string
 }
 
-type ConfigsEtcdAuth struct {
+type ConfigEtcdAuth struct {
 	CaCert       string `yaml:"ca_cert"`
 	ClientCert   string `yaml:"client_cert"`
 	ClientKey    string `yaml:"client_key"`
@@ -28,30 +28,30 @@ type ConfigsEtcdAuth struct {
 	Password     string `yaml:"-"`
 }
 
-type ConfigsEtcd struct {
+type ConfigEtcd struct {
 	Prefix            string
 	Endpoints         []string
 	ConnectionTimeout time.Duration        `yaml:"connection_timeout"`
 	RequestTimeout    time.Duration        `yaml:"request_timeout"`
 	RetryInterval     time.Duration        `yaml:"retry_interval"`
 	Retries           uint64
-	Auth              ConfigsEtcdAuth
+	Auth              ConfigEtcdAuth
 }
 
-type ConfigsFilesystem struct {
+type ConfigFilesystem struct {
 	Path                  string
 	SlashPath             string `yaml:"-"`
 	FilesPermission       string `yaml:"files_permission"`
 	DirectoriesPermission string `yaml:"directories_permission"`
 }
 
-type ConfigsGrpcAuth struct {
+type ConfigGrpcAuth struct {
 	CaCert            string `yaml:"ca_cert"`
 	ClientCert        string `yaml:"client_cert"`
 	ClientKey         string `yaml:"client_key"`
 }
 
-type ConfigsGrpcNotifications struct {
+type ConfigGrpcNotifications struct {
 	Endpoint          string
 	Filter            string
 	FilterRegex       *regexp.Regexp  `yaml:"-"`
@@ -61,19 +61,19 @@ type ConfigsGrpcNotifications struct {
 	RequestTimeout    time.Duration   `yaml:"request_timeout"`            
 	RetryInterval     time.Duration   `yaml:"retry_interval"`
 	Retries           uint64
-	Auth              ConfigsGrpcAuth
+	Auth              ConfigGrpcAuth
 }
 
-type Configs struct {
-	Filesystem                 ConfigsFilesystem
-	EtcdClient                 ConfigsEtcd                `yaml:"etcd_client"`
-	GrpcNotifications          []ConfigsGrpcNotifications `yaml:"grpc_notifications"`
+type Config struct {
+	Filesystem                 ConfigFilesystem
+	EtcdClient                 ConfigEtcd                `yaml:"etcd_client"`
+	GrpcNotifications          []ConfigGrpcNotifications `yaml:"grpc_notifications"`
 	NotificationCommand        []string                   `yaml:"notification_command"`
 	NotificationCommandRetries uint64                     `yaml:"notification_command_retries"`
     LogLevel                   string                     `yaml:"log_level"`
 }
 
-func (c *Configs) GetLogLevel() int64 {
+func (c *Config) GetLogLevel() int64 {
 	logLevel := strings.ToLower(c.LogLevel)
 	switch logLevel {
 	case "error":
@@ -87,7 +87,7 @@ func (c *Configs) GetLogLevel() int64 {
 	}
 }
 
-func checkConfigsIntegrity(c Configs) error {
+func checkConfigIntegrity(c Config) error {
 	if c.Filesystem.Path == "" {
 		return errors.New("Configuration error: Filesystem path cannot be empty")
 	}
@@ -140,7 +140,7 @@ func getPasswordAuth(path string) (EtcdPasswordAuth, error) {
 	return a, nil
 }
 
-func setGrpcEndpointsRegex(c *Configs) error {
+func setGrpcEndpointsRegex(c *Config) error {
 	for idx, notif := range c.GrpcNotifications {
 		if notif.Filter != "" {
 			exp, expErr := regexp.Compile(notif.Filter)
@@ -155,17 +155,17 @@ func setGrpcEndpointsRegex(c *Configs) error {
 	return nil
 }
 
-func GetConfigs(confFilePath string) (Configs, error) {
-	var c Configs
+func GetConfig(confFilePath string) (Config, error) {
+	var c Config
 
 	bs, err := ioutil.ReadFile(confFilePath)
 	if err != nil {
-		return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
+		return Config{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
 	}
 
 	err = yaml.Unmarshal(bs, &c)
 	if err != nil {
-		return Configs{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
+		return Config{}, errors.New(fmt.Sprintf("Error reading configuration file: %s", err.Error()))
 	}
 
 	if c.EtcdClient.Auth.PasswordAuth != "" {
@@ -187,7 +187,7 @@ func GetConfigs(confFilePath string) (Configs, error) {
 
 	absPath, absPathErr := filepath.Abs(c.Filesystem.Path)
 	if absPathErr != nil {
-		return Configs{}, errors.New(fmt.Sprintf("Error conversion filesystem path to absolute path: %s", absPathErr.Error()))
+		return Config{}, errors.New(fmt.Sprintf("Error conversion filesystem path to absolute path: %s", absPathErr.Error()))
 	}
 
 	c.Filesystem.Path = absPath
@@ -201,9 +201,9 @@ func GetConfigs(confFilePath string) (Configs, error) {
 		return c, expErr
 	}
 
-	err = checkConfigsIntegrity(c)
+	err = checkConfigIntegrity(c)
 	if err != nil {
-		return Configs{}, err
+		return Config{}, err
 	}
 
 	return c, nil
