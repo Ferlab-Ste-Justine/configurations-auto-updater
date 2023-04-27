@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 	yaml "gopkg.in/yaml.v2"
+
+	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/logger"
 )
 
 type EtcdPasswordAuth struct {
@@ -67,6 +70,21 @@ type Configs struct {
 	GrpcNotifications          []ConfigsGrpcNotifications `yaml:"grpc_notifications"`
 	NotificationCommand        []string                   `yaml:"notification_command"`
 	NotificationCommandRetries uint64                     `yaml:"notification_command_retries"`
+    LogLevel                   string                     `yaml:"log_level"`
+}
+
+func (c *Configs) GetLogLevel() int64 {
+	logLevel := strings.ToLower(c.LogLevel)
+	switch logLevel {
+	case "error":
+		return logger.ERROR
+	case "warning":
+		return logger.WARN
+	case "debug":
+		return logger.DEBUG
+	default:
+		return logger.INFO
+	}
 }
 
 func checkConfigsIntegrity(c Configs) error {

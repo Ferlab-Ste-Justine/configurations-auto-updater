@@ -20,13 +20,15 @@ func getEnv(key string, fallback string) string {
 }
 
 func main() {
-	log := logger.Logger{LogLevel: logger.INFO}
+	log := logger.Logger{LogLevel: logger.ERROR}
 
 	confs, err := configs.GetConfigs(getEnv("CONFS_AUTO_UPDATER_CONFIG_FILE", "configs.yml"))
 	if err != nil {
 		log.Errorf(err.Error())
 		os.Exit(1)
 	}
+
+	log.LogLevel = confs.GetLogLevel()
 
 	var proceedCh chan struct{}
 	var notifCli *GrpcNotifClient
