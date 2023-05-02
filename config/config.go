@@ -3,13 +3,13 @@ package config
 import (
 	"errors"
 	"fmt"
+	yaml "gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/Ferlab-Ste-Justine/configurations-auto-updater/logger"
 )
@@ -31,9 +31,9 @@ type ConfigEtcdAuth struct {
 type ConfigEtcd struct {
 	Prefix            string
 	Endpoints         []string
-	ConnectionTimeout time.Duration        `yaml:"connection_timeout"`
-	RequestTimeout    time.Duration        `yaml:"request_timeout"`
-	RetryInterval     time.Duration        `yaml:"retry_interval"`
+	ConnectionTimeout time.Duration `yaml:"connection_timeout"`
+	RequestTimeout    time.Duration `yaml:"request_timeout"`
+	RetryInterval     time.Duration `yaml:"retry_interval"`
 	Retries           uint64
 	Auth              ConfigEtcdAuth
 }
@@ -46,20 +46,20 @@ type ConfigFilesystem struct {
 }
 
 type ConfigGrpcAuth struct {
-	CaCert            string `yaml:"ca_cert"`
-	ClientCert        string `yaml:"client_cert"`
-	ClientKey         string `yaml:"client_key"`
+	CaCert     string `yaml:"ca_cert"`
+	ClientCert string `yaml:"client_cert"`
+	ClientKey  string `yaml:"client_key"`
 }
 
 type ConfigGrpcNotifications struct {
 	Endpoint          string
 	Filter            string
-	FilterRegex       *regexp.Regexp  `yaml:"-"`
-	TrimKeyPath       bool            `yaml:"trim_key_path"`
-	MaxChunkSize      uint64          `yaml:"max_chunk_size"`
-	ConnectionTimeout time.Duration   `yaml:"connection_timeout"`
-	RequestTimeout    time.Duration   `yaml:"request_timeout"`            
-	RetryInterval     time.Duration   `yaml:"retry_interval"`
+	FilterRegex       *regexp.Regexp `yaml:"-"`
+	TrimKeyPath       bool           `yaml:"trim_key_path"`
+	MaxChunkSize      uint64         `yaml:"max_chunk_size"`
+	ConnectionTimeout time.Duration  `yaml:"connection_timeout"`
+	RequestTimeout    time.Duration  `yaml:"request_timeout"`
+	RetryInterval     time.Duration  `yaml:"retry_interval"`
 	Retries           uint64
 	Auth              ConfigGrpcAuth
 }
@@ -68,9 +68,9 @@ type Config struct {
 	Filesystem                 ConfigFilesystem
 	EtcdClient                 ConfigEtcd                `yaml:"etcd_client"`
 	GrpcNotifications          []ConfigGrpcNotifications `yaml:"grpc_notifications"`
-	NotificationCommand        []string                   `yaml:"notification_command"`
-	NotificationCommandRetries uint64                     `yaml:"notification_command_retries"`
-    LogLevel                   string                     `yaml:"log_level"`
+	NotificationCommand        []string                  `yaml:"notification_command"`
+	NotificationCommandRetries uint64                    `yaml:"notification_command_retries"`
+	LogLevel                   string                    `yaml:"log_level"`
 }
 
 func (c *Config) GetLogLevel() int64 {
@@ -101,7 +101,7 @@ func checkConfigIntegrity(c Config) error {
 	}
 
 	noValidAuth := (c.EtcdClient.Auth.ClientCert == "" || c.EtcdClient.Auth.ClientKey == "") && (c.EtcdClient.Auth.Username == "" || c.EtcdClient.Auth.Password == "")
-	ambiguousAuthMethod := (c.EtcdClient.Auth.ClientCert != "" || c.EtcdClient.Auth.ClientKey  != "") && (c.EtcdClient.Auth.Username != "" || c.EtcdClient.Auth.Password != "")
+	ambiguousAuthMethod := (c.EtcdClient.Auth.ClientCert != "" || c.EtcdClient.Auth.ClientKey != "") && (c.EtcdClient.Auth.Username != "" || c.EtcdClient.Auth.Password != "")
 
 	if noValidAuth || ambiguousAuthMethod {
 		return errors.New("Configuration error: Either user certificate AND key path should not be empty XOR user name AND password should not be empty")
@@ -192,8 +192,8 @@ func GetConfig(confFilePath string) (Config, error) {
 
 	c.Filesystem.Path = absPath
 	c.Filesystem.SlashPath = filepath.ToSlash(absPath)
-	if c.Filesystem.SlashPath [len(c.Filesystem.SlashPath )-1:] != "/" {
-		c.Filesystem.SlashPath  = c.Filesystem.SlashPath + "/"
+	if c.Filesystem.SlashPath[len(c.Filesystem.SlashPath)-1:] != "/" {
+		c.Filesystem.SlashPath = c.Filesystem.SlashPath + "/"
 	}
 
 	expErr := setGrpcEndpointsRegex(&c)

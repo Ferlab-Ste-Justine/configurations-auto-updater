@@ -11,7 +11,7 @@ func ExecCommand(command []string, retries uint64) error {
 	if err != nil {
 		if retries > 0 {
 			fmt.Println("Warning: Following error occured on post-updated command, will retry: ", err.Error())
-			return ExecCommand(command, retries - 1)
+			return ExecCommand(command, retries-1)
 		}
 
 		return err
@@ -20,6 +20,6 @@ func ExecCommand(command []string, retries uint64) error {
 	if len(out) > 0 {
 		fmt.Print(string(out))
 	}
-	
+
 	return nil
 }

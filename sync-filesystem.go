@@ -37,7 +37,7 @@ func SyncFilesystem(conf config.Config, proceedChan <-chan struct{}, log logger.
 			ClientKeyPath:     conf.EtcdClient.Auth.ClientKey,
 			CaCertPath:        conf.EtcdClient.Auth.CaCert,
 			Username:          conf.EtcdClient.Auth.Username,
-			Password:		   conf.EtcdClient.Auth.Password,
+			Password:          conf.EtcdClient.Auth.Password,
 			EtcdEndpoints:     conf.EtcdClient.Endpoints,
 			ConnectionTimeout: conf.EtcdClient.ConnectionTimeout,
 			RequestTimeout:    conf.EtcdClient.RequestTimeout,
@@ -64,14 +64,14 @@ func SyncFilesystem(conf config.Config, proceedChan <-chan struct{}, log logger.
 		}
 
 		diff := client.GetKeyDiff(
-			prefixInfo.Keys.ToValueMap(conf.EtcdClient.Prefix), 
+			prefixInfo.Keys.ToValueMap(conf.EtcdClient.Prefix),
 			dirKeys.ToValueMap(conf.Filesystem.SlashPath),
 		)
 
 		if !diff.IsEmpty() {
 			feedbackChan <- SyncFsFeedback{Diff: diff}
 			if proceedChan != nil {
-				_, ok := <- proceedChan
+				_, ok := <-proceedChan
 				if !ok {
 					return
 				}
@@ -82,7 +82,7 @@ func SyncFilesystem(conf config.Config, proceedChan <-chan struct{}, log logger.
 				feedbackChan <- SyncFsFeedback{Error: applyErr}
 				return
 			}
-	
+
 			if len(conf.NotificationCommand) > 0 {
 				cmdErr := cmd.ExecCommand(conf.NotificationCommand, conf.NotificationCommandRetries)
 				if cmdErr != nil {
@@ -93,8 +93,8 @@ func SyncFilesystem(conf config.Config, proceedChan <-chan struct{}, log logger.
 		}
 
 		wOpts := client.WatchOptions{
-			Revision: prefixInfo.Revision + 1,
-			IsPrefix: true,
+			Revision:   prefixInfo.Revision + 1,
+			IsPrefix:   true,
 			TrimPrefix: true,
 		}
 		changeChan := cli.Watch(conf.EtcdClient.Prefix, wOpts)
@@ -112,7 +112,7 @@ func SyncFilesystem(conf config.Config, proceedChan <-chan struct{}, log logger.
 
 			feedbackChan <- SyncFsFeedback{Diff: diff}
 			if proceedChan != nil {
-				_, ok := <- proceedChan
+				_, ok := <-proceedChan
 				if !ok {
 					return
 				}

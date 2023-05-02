@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strings"
 
@@ -47,7 +47,6 @@ func getTlsConfig(opts config.ConfigGrpcAuth) (credentials.TransportCredentials,
 	return credentials.NewTLS(tlsConf), nil
 }
 
-
 func GetKeyFilter(regex *regexp.Regexp) client.KeyDiffFilter {
 	if regex != nil {
 		return func(key string) bool {
@@ -55,18 +54,18 @@ func GetKeyFilter(regex *regexp.Regexp) client.KeyDiffFilter {
 		}
 	}
 
-	return func(key string) bool {return true}
+	return func(key string) bool { return true }
 }
 
 func GetKeyTransform(TrimKeyPath bool) client.KeyDiffTransform {
 	if TrimKeyPath {
 		return func(key string) string {
 			split := strings.Split(key, "/")
-			return split[len(split) - 1]
+			return split[len(split)-1]
 		}
 	}
 
-	return func(key string) string {return key}
+	return func(key string) string { return key }
 }
 
 type GrpcNotifClientTarget struct {
@@ -101,7 +100,7 @@ func ConnectToNotifEndpoints(notifications []config.ConfigGrpcNotifications) (*G
 			}
 			opts = append(opts, grpc.WithTransportCredentials(creds))
 		}
-		
+
 		conn, connErr := grpc.Dial(notification.Endpoint, opts...)
 		if connErr != nil {
 			cli.Close()
@@ -109,9 +108,9 @@ func ConnectToNotifEndpoints(notifications []config.ConfigGrpcNotifications) (*G
 		}
 
 		cli.Targets = append(cli.Targets, GrpcNotifClientTarget{
-			conn: conn,
-			client: keypb.NewKeyPushServiceClient(conn),
-			KeyFilter: GetKeyFilter(notification.FilterRegex),
+			conn:         conn,
+			client:       keypb.NewKeyPushServiceClient(conn),
+			KeyFilter:    GetKeyFilter(notification.FilterRegex),
 			KeyTransform: GetKeyTransform(notification.TrimKeyPath),
 			MaxChunkSize: notification.MaxChunkSize,
 		})
@@ -152,7 +151,7 @@ func (cli *GrpcNotifClient) sendTo(idx int, diff *client.KeyDiff) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	
+
 	return nil
 }
 
@@ -171,7 +170,7 @@ func (cli *GrpcNotifClient) Close() []error {
 	for _, target := range cli.Targets {
 		err := target.conn.Close()
 		if err != nil {
-			errors = append(errors ,err)
+			errors = append(errors, err)
 		}
 	}
 	return errors

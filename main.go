@@ -1,7 +1,7 @@
 package main
 
 import (
-    "os"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -10,10 +10,10 @@ import (
 )
 
 func getEnv(key string, fallback string) string {
-    if value, ok := os.LookupEnv(key); ok {
-        return value
-    }
-    return fallback
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
 
 func main() {
@@ -58,7 +58,7 @@ func main() {
 		}
 
 		log.Infof(
-			"[main] Received Update: %d inserts, %d updates and %d deletions", 
+			"[main] Received Update: %d inserts, %d updates and %d deletions",
 			len(feedback.Diff.Inserts),
 			len(feedback.Diff.Updates),
 			len(feedback.Diff.Deletions),

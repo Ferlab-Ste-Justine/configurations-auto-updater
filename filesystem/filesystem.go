@@ -14,8 +14,8 @@ import (
 
 func WatchInfoToKeyDiffs(filesystemPath string, w client.WatchInfo) (client.KeyDiff, error) {
 	diff := client.KeyDiff{
-		Inserts: make(map[string]string),
-		Updates: make(map[string]string),
+		Inserts:   make(map[string]string),
+		Updates:   make(map[string]string),
 		Deletions: w.Deletions,
 	}
 
@@ -72,12 +72,12 @@ func GetDirectoryContent(path string) (client.KeyInfoMap, error) {
 			}
 
 			keys[path] = client.KeyInfo{
-				Key: filepath.ToSlash(path),
-				Value: string(content),
-				Version: 0,
+				Key:            filepath.ToSlash(path),
+				Value:          string(content),
+				Version:        0,
 				CreateRevision: 0,
-				ModRevision: 0,
-				Lease: 0,
+				ModRevision:    0,
+				Lease:          0,
 			}
 		}
 
