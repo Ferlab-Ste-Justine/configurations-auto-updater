@@ -19,7 +19,7 @@ type Server struct {
 func (s *Server) SendKeyDiff(stream keypb.KeyPushService_SendKeyDiffServer) error {
 	reqCh := make(chan *keypb.SendKeyDiffRequest)
 	keyDiffCh := keypb.ProcessSendKeyDiffRequests(reqCh)
-	
+
 	err := func() error {
 		defer close(reqCh)
 		for {
@@ -60,7 +60,7 @@ func (s *Server) SendKeyDiff(stream keypb.KeyPushService_SendKeyDiffServer) erro
 		return status.New(code, result.Error.Error()).Err()
 	}
 
-	fmt.Printf("Received: %v\n", result.KeyDiff)
+	fmt.Printf("Received:\n\tInserts: %v\n\tUpdates: %v\n\tDeletions: %v\n", result.KeyDiff.Inserts, result.KeyDiff.Updates, result.KeyDiff.Deletions)
 
 	sendErr := stream.SendAndClose(&keypb.SendKeyDiffResponse{})
 	return sendErr

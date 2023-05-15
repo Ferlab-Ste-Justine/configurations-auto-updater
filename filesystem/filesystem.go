@@ -20,7 +20,7 @@ func WatchInfoToKeyDiffs(filesystemPath string, w client.WatchInfo) (client.KeyD
 	}
 
 	for key, val := range w.Upserts {
-		_, err := os.Stat(filepath.Join())
+		_, err := os.Stat(filepath.Join(filesystemPath, key))
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				return diff, err
