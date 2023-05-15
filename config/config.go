@@ -57,10 +57,6 @@ type ConfigGrpcNotifications struct {
 	FilterRegex       *regexp.Regexp `yaml:"-"`
 	TrimKeyPath       bool           `yaml:"trim_key_path"`
 	MaxChunkSize      uint64         `yaml:"max_chunk_size"`
-	ConnectionTimeout time.Duration  `yaml:"connection_timeout"`
-	RequestTimeout    time.Duration  `yaml:"request_timeout"`
-	RetryInterval     time.Duration  `yaml:"retry_interval"`
-	Retries           uint64
 	Auth              ConfigGrpcAuth
 }
 

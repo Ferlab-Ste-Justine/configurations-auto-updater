@@ -54,10 +54,6 @@ grpc_notifications:
     filter: "An optional regexp filter to apply on all file names being pushed. The remote server will be notified only of changes on files that pass the regexp"
     trim_key_path: "If set to true, the path of file names will be trimed out and the remote server will only receives the base of the file names in its notifications"
     max_chunk_size: "Maximum size to send per message in bytes. If the combined size of the updated files is larger, it will be broken down in several messages. Note that this is a best effort 'guarantee' as the message size may still be larger if a single file exceeds this value"
-    connection_timeout: "Timeout on the connection to the server"
-    request_timeout: "Timeout on requests to the server in golang duration format"
-    retry_interval: "Interval of time to wait between retries in golang duration format"
-    retries: "Maximum number of retries to make before giving up"
     auth:
       ca_cert: "Path to CA certificate that will validate the server's certificate for mTLS"
       client_cert: "Path to client public certificate that will authentication to the server for mTLS"
