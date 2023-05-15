@@ -1,0 +1,27 @@
+filesystem:
+  path: "downloads"
+  files_permission: "770"
+  directories_permission: "770"
+etcd_client:
+  prefix: "/upload/"
+  endpoints:
+    - "127.0.0.1:32381"
+  connection_timeout: "30s"
+  request_timeout: "30s"
+  retry_interval: "2s"
+  retries: 5
+  auth:
+    ca_cert: "../etcd-server/certs/ca.pem"
+    client_cert: "../etcd-server/certs/root.pem"
+    client_key: "../etcd-server/certs/root.key"
+grpc_notifications:
+  - endpoint: "127.0.0.10:8080"
+    max_chunk_size: 1048576
+    connection_timeout: "30s"
+    request_timeout: "30s"
+    retry_interval: "30s"
+    retries: 10
+notification_command:
+  - echo
+  - "updated!"
+notification_command_retries: 5

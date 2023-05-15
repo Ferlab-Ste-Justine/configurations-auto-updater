@@ -1,11 +1,9 @@
-configs.json
-certs/
-configurations/
 configurations-auto-updater
-notification_command.sh
-timestamp
-test-environment/*/local.tfvars
+test-environment/*/*.tfvars
 test-environment/*/.terraform.lock.hcl
 test-environment/*/.terraform/
 test-environment/*/terraform.tfstate
+test-environment/*/terraform.tfstate.backup
 test-environment/updater/downloads/
+test-environment/etcd-server/certs/
+test-environment/dummy-notifications-receiver/dummy-notifications-receiver
