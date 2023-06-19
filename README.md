@@ -24,7 +24,7 @@ It supports the following cases:
 
 # Usage
 
-The tool is a binary that can be configured either with a configuration file or environment variables (it tries to look for a **config.yml** file in its running directory (alternatively, you can specify another path for the configuration file with the **CONFS_AUTO_UPDATER_CONFIG_FILE** environment variable) and if the file is absent, it fallsback to reading the expected environment variables).
+The behavior of the binary is configured with a configuration file (it tries to look for a **config.yml** file in its running directory, but alternatively, you can specify another path for the configuration file with the **CONFS_AUTO_UPDATER_CONFIG_FILE** environment variable).
 
 The **config.yml** file is as follows:
 
