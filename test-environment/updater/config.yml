@@ -12,8 +12,9 @@ etcd_client:
   retries: 5
   auth:
     ca_cert: "../etcd-server/certs/ca.pem"
-    client_cert: "../etcd-server/certs/root.pem"
-    client_key: "../etcd-server/certs/root.key"
+    #client_cert: "../etcd-server/certs/root.pem"
+    #client_key: "../etcd-server/certs/root.key"
+    client_cert_key: "../etcd-server/certs/root_cert_key.pem"
 grpc_notifications:
   - endpoint: "127.0.0.10:8080"
     max_chunk_size: 1048576

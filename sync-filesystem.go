@@ -35,6 +35,7 @@ func SyncFilesystem(conf config.Config, proceedChan <-chan struct{}, log logger.
 		cli, cliErr := client.Connect(ctx, client.EtcdClientOptions{
 			ClientCertPath:    conf.EtcdClient.Auth.ClientCert,
 			ClientKeyPath:     conf.EtcdClient.Auth.ClientKey,
+			ClientCertKeyPath: conf.EtcdClient.Auth.ClientCertKey,
 			CaCertPath:        conf.EtcdClient.Auth.CaCert,
 			Username:          conf.EtcdClient.Auth.Username,
 			Password:          conf.EtcdClient.Auth.Password,

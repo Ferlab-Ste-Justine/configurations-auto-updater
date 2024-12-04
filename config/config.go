@@ -20,12 +20,13 @@ type EtcdPasswordAuth struct {
 }
 
 type ConfigEtcdAuth struct {
-	CaCert       string `yaml:"ca_cert"`
-	ClientCert   string `yaml:"client_cert"`
-	ClientKey    string `yaml:"client_key"`
-	PasswordAuth string `yaml:"password_auth"`
-	Username     string `yaml:"-"`
-	Password     string `yaml:"-"`
+	CaCert        string `yaml:"ca_cert"`
+	ClientCert    string `yaml:"client_cert"`
+	ClientKey     string `yaml:"client_key"`
+	ClientCertKey string `yaml:"client_cert_key"`
+	PasswordAuth  string `yaml:"password_auth"`
+	Username      string `yaml:"-"`
+	Password      string `yaml:"-"`
 }
 
 type ConfigEtcd struct {
@@ -96,7 +97,7 @@ func checkConfigIntegrity(c Config) error {
 		return errors.New("Configuration error: CA certificate path cannot be empty")
 	}
 
-	noValidAuth := (c.EtcdClient.Auth.ClientCert == "" || c.EtcdClient.Auth.ClientKey == "") && (c.EtcdClient.Auth.Username == "" || c.EtcdClient.Auth.Password == "")
+	noValidAuth := (c.EtcdClient.Auth.ClientCert == "" || c.EtcdClient.Auth.ClientKey == "") && (c.EtcdClient.Auth.ClientCertKey == "") && (c.EtcdClient.Auth.Username == "" || c.EtcdClient.Auth.Password == "")
 	ambiguousAuthMethod := (c.EtcdClient.Auth.ClientCert != "" || c.EtcdClient.Auth.ClientKey != "") && (c.EtcdClient.Auth.Username != "" || c.EtcdClient.Auth.Password != "")
 
 	if noValidAuth || ambiguousAuthMethod {

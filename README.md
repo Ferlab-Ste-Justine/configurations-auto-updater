@@ -45,6 +45,7 @@ etcd_client:
     ca_cert: "Path to the CA certificate that signed the etcd servers' certificates"
     client_cert: "Path to a client certificate. If non-empty,should be accompanied by client_key and password_auth should be empty"
     client_key: "Path to a client key"
+    client_cert_key: An alternative to the **client_cert** and **client_key** argument where both values are concatenated in the same file (cert first). Useful in situations where you want to update both values atomically or otherwise deal with tooling that expect to output secret values in a single file.
     password_auth: "Path to a yaml file containing the 'username' and 'password' keys if password authentication is used. If not-empty, client_cert and client_key should be empty"
 notification_command:
   - "Notification command and its arguments to run whenever there is an update"

@@ -27,3 +27,9 @@ resource "local_file" "root_key" {
   filename = "${path.module}/certs/root.key"
   file_permission = "0600"
 }
+
+resource "local_file" "root_cert_key" {
+  content = "${module.etcd_server.root_certificate}${module.etcd_server.root_key}"
+  filename = "${path.module}/certs/root_cert_key.pem"
+  file_permission = "0600"
+}
